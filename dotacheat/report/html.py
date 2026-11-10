@@ -20,7 +20,7 @@ h1{font-size:22px;margin:0 0 4px}h2{font-size:18px;margin:28px 0 8px}h3{font-siz
 table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
 .score{font-weight:700;font-variant-numeric:tabular-nums;font-size:16px}
-.pill{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;color:#fff}
+.pill{display:inline-block;white-space:nowrap;padding:1px 8px;border-radius:99px;font-size:12px;color:#fff}
 .high{background:var(--high)}.mid{background:var(--mid)}.low{background:var(--low)}.none{background:var(--none)}
 .team-2{color:var(--rad);font-weight:600}.team-3{color:var(--dire);font-weight:600}
 .bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;min-width:80px}.bar>i{display:block;height:100%}
@@ -65,7 +65,7 @@ def render_html(result) -> str:
             f"<td><ul class='reasons'>{reasons}</ul></td></tr>")
 
     sections = []
-    for p in m.players:
+    for p in sorted(m.players, key=lambda p: -result.scores[p.pid].score):
         s = result.scores[p.pid]
         label, cls = band(s.score)
         blocks = []
@@ -96,6 +96,9 @@ def render_html(result) -> str:
             f"<span class='pill {cls}'>{label}</span></h3>{''.join(blocks)}</div>")
 
     heur = "".join(f"<li><b>{escape(h['title'])}</b>: {escape(h['description'])}</li>" for h in result.heuristics)
+    sim_note = ("<div class='warn' style='border-left-color:var(--high)'><b>DATE SIMULATE:</b> "
+                f"{escape(m.source.split(') ')[0])}). Comportament injectat artificial pentru testarea "
+                "sensibilității; nu este un meci real cu un cheater.</div>" if m.source.startswith("SIMULAT") else "")
     vis_note = ("" if m.has_visibility else
                 "<div class='warn'>Replay-ul nu conține date de vizibilitate per echipă (build vechi). "
                 "Euristicile bazate pe ceață (maphack) nu au putut fi aplicate.</div>")
@@ -107,7 +110,7 @@ def render_html(result) -> str:
 {escape(m.parser_version)} · sursă {escape(Path(m.source).name)}</div>
 <div class="warn"><b>Important:</b> {escape(DISCLAIMER)} Timpii (MM:SS) sunt ceasul din joc; în clientul Dota 2
 deschideți replay-ul și derulați la acel moment, din perspectiva jucătorului respectiv.</div>
-{vis_note}
+{sim_note}{vis_note}
 <h2>Jucători</h2><div class="card"><table>
 <tr><th>#</th><th>echipa</th><th>erou / jucător</th><th>scor</th><th>nivel</th><th>motive principale</th></tr>
 {''.join(rows)}</table></div>

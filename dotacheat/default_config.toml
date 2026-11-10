@@ -44,10 +44,14 @@ baseline_samples = 400
 enabled = true
 fast_ms = 120.0                    # corrected reaction below this is "inhuman"
 max_window_ms = 1000.0             # only responses within this window after the trigger count
-ping_correction = 0.5              # subtract this * ping of the response order (half RTT)
+ping_correction = 1.0              # subtract this * ping (round trip) of the response order
+physical_slack_ms = 30.0           # responses earlier than ping - this (or in the same tick) are not reactions
+spam_window_s = 0.5                # a press repeated within this window is key spam (ignored)
 trigger_radius = 1400.0            # trigger must happen this close to the player's hero
-min_fast = 3                       # need at least this many sub-threshold reactions...
-fast_share_for_half = 0.25         # ...and this share of all measured reactions for sub-score 0.5
+min_fast = 3                       # need at least this many fast reactions ABOVE what chance explains
+max_p_value = 0.002                # ...and that excess must be unlikely by chance (Poisson test, strict: 10 players x several tests)
+# Chance is measured per cast: the same cast shifted by ±0.5–3 s, how often would it look "fast"?
+fast_share_for_half = 0.2          # excess fast reactions / candidate casts for sub-score 0.5
 min_samples = 4
 
 # (c) Scripts / auto-combo: identical tick-level timing in repeated cast sequences.
@@ -62,7 +66,9 @@ same_tick_distinct_casts = 3       # >= this many different abilities in the sam
 ignore = ["invoker_quas", "invoker_wex", "invoker_exort", "courier_*", "item_tpscroll",
           "item_travel_boots", "item_travel_boots_2", "item_power_treads", "item_phase_boots",
           "item_magic_wand", "item_magic_stick", "item_bottle", "item_tango", "item_ward_*",
-          "*_toggle", "item_armlet"]
+          "*_toggle", "item_armlet", "item_enhancement_*", "item_madstone*", "neutral_*",
+          "creep_*", "largo_song_*", "largo_amphibian_rhapsody", "*_stop", "*_release",
+          "item_moon_shard", "item_tome_of_knowledge"]
 incidents_for_half = 3.0
 
 # (d1) Last hits / denies with constant timing.
@@ -70,8 +76,8 @@ incidents_for_half = 3.0
 enabled = true
 window_s = 1.5                     # last attack order at most this long before the creep died
 min_samples = 25
-cv_for_half = 0.08                 # coefficient of variation of (death - order) at/below => 0.5
-cv_human = 0.25                    # typical human CV; sub-score falls to 0 above this
+cv_for_half = 0.15                 # coefficient of variation of (death - order) at/below => 0.5
+cv_human = 0.30                    # lowest CV seen in calibration pro games ~0.31; sub-score 0 above this
 
 # (d2) Systematic perfect dodges of skillshots.
 [dodges]

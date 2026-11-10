@@ -56,6 +56,10 @@ def main(argv: list[str] | None = None) -> int:
     g = sub.add_parser("gui", help="pornește interfața web locală")
     g.add_argument("--port", type=int, default=8765)
     g.add_argument("--no-browser", action="store_true")
+    if argv is None:
+        argv = sys.argv[1:]
+    if not argv:  # double-clicked executable: open the local web UI
+        argv = ["gui"]
     args = ap.parse_args(argv)
 
     if args.cmd == "folders":

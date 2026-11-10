@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.dem
+*.dem.bz2
+cache/
+reports/
+*.pkl

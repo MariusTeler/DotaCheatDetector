@@ -21,6 +21,7 @@ from .paths import reports_dir
 
 JOBS: dict[str, dict] = {}
 LOCK = threading.Lock()
+AUTO: dict = {"folders": [], "items": []}  # replays analysed automatically by the folder watcher
 
 PAGE = """<!DOCTYPE html><html lang="ro"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Dota 2 – analiză replay</title>
@@ -44,6 +45,8 @@ a.btn{display:inline-block;margin-top:10px;background:#2e7d32;color:#fff;padding
 <p class="muted">Replay-ul se caută întâi în folderul local de replay-uri, apoi se descarcă prin OpenDota.</p>
 __LOCAL__
 </div>
+<div class="card"><b>Analiză automată</b>
+<p class="muted" id="autostate">__AUTOSTATE__</p><ul id="auto"></ul></div>
 <div class="card"><b>Progres</b><pre id="log">—</pre><div id="res"></div></div>
 <p class="muted">dotacheat __VERSION__ · rapoarte salvate în __REPORTS__</p>
 </main><script>
@@ -62,6 +65,13 @@ async function poll(id){
   setTimeout(()=>poll(id),1000);
 }
 f.onsubmit=e=>{e.preventDefault();const m=f.match.value.trim();if(!/^\\d+$/.test(m)){log.textContent='Match ID invalid';return}start({match:m})};
+async function auto(){
+  try{const j=await (await fetch('/api/auto')).json();
+    document.getElementById('auto').innerHTML=j.items.map(i=>'<li>'+i.time+' — <b>'+i.name+'</b>: '+
+      (i.state==='done'?i.summary+' — <a href="'+i.report+'" target="_blank">raport</a>':(i.state==='error'?'eroare: '+i.error:'se analizează…'))+'</li>').reverse().join('');
+    const n=j.items.filter(i=>i.state==='done').length; if(n) document.title='('+n+') Dota 2 – analiză replay';
+  }catch(e){} setTimeout(auto,4000)}
+auto();
 const lf=document.getElementById('lf'); if(lf){lf.onsubmit=e=>{e.preventDefault();start({file:lf.file.value})}}
 </script></body></html>"""
 
@@ -82,7 +92,12 @@ def _page() -> str:
                  f"</select></label> <button>Analizează fișierul</button></form>")
     else:
         block = "<p class='muted'>Nu am găsit folderul de replay-uri Dota 2 pe acest PC.</p>"
-    return (PAGE.replace("__LOCAL__", block).replace("__VERSION__", __version__)
+    if AUTO["folders"]:
+        autostate = ("Urmăresc " + ", ".join(html.escape(str(f)) for f in AUTO["folders"]) +
+                     ". Descarcă un replay din client (Watch → Replays → Download) și apare aici automat.")
+    else:
+        autostate = "Folderul de replay-uri nu a fost găsit, deci analiza automată e oprită."
+    return (PAGE.replace("__LOCAL__", block).replace("__AUTOSTATE__", autostate).replace("__VERSION__", __version__)
             .replace("__REPORTS__", html.escape(str(reports_dir()))))
 
 
@@ -137,6 +152,9 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == "/":
             return self._send(200, _page().encode("utf-8"), "text/html; charset=utf-8")
+        if path == "/api/auto":
+            with LOCK:
+                return self._json({"folders": [str(f) for f in AUTO["folders"]], "items": list(AUTO["items"])})
         if path.startswith("/api/job/"):
             job = JOBS.get(path.rsplit("/", 1)[-1])
             if job is None:
@@ -173,7 +191,35 @@ class Handler(BaseHTTPRequestHandler):
         self._json({"job": job_id})
 
 
-def serve(port: int = 8765, open_browser: bool = True) -> None:
+def _auto_analyse(path: Path) -> None:
+    import time
+
+    from .cli import run_analysis
+
+    item = {"name": path.name, "time": time.strftime("%H:%M:%S"), "state": "running"}
+    with LOCK:
+        AUTO["items"].append(item)
+    try:
+        result, html_path, _ = run_analysis(file=str(path), progress=lambda m: None)
+        top = sorted(result.scores.values(), key=lambda s: -s.score)[:3]
+        summary = "scor maxim " + ", ".join(
+            f"{html.escape(result.match.players[s.pid].hero_short)} {s.score:.0f}" for s in top)
+        with LOCK:
+            item.update(state="done", report=f"/reports/{html_path.name}", summary=summary)
+    except Exception as exc:
+        with LOCK:
+            item.update(state="error", error=html.escape(str(exc)))
+
+
+def serve(port: int = 8765, open_browser: bool = True, watch: bool = True) -> None:
+    if watch:
+        from .watch import ReplayWatcher
+
+        watcher = ReplayWatcher()
+        AUTO["folders"] = watcher.folders
+        if watcher.folders:
+            # one analysis at a time: the watcher thread runs them sequentially
+            watcher.start(_auto_analyse)
     httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     url = f"http://127.0.0.1:{port}/"
     print(f"Interfața rulează la {url}  (Ctrl+C pentru oprire)")

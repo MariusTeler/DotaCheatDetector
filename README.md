@@ -55,6 +55,21 @@ dotacheat.exe            (sau: run.bat)
 Lipești Match ID-ul și apeși **Analizează**, sau alegi un replay din folderul clientului. Durează
 în jur de un minut pe meci (parsarea). La final apare un link către raport.
 
+### Analiză automată după descărcarea din client
+
+Descarci replay-ul din clientul Dota 2 (**Watch → Replays → Download**), iar analiza pornește
+singură, fără Match ID. Ai două variante:
+
+* **Interfața** (`dotacheat.exe`) urmărește automat folderul de replay-uri cât timp e deschisă.
+  Fiecare replay nou apare în secțiunea „Analiză automată”, cu link spre raport.
+* **`urmareste-replayuri.bat`**, din folderul aplicației, sau `dotacheat.exe watch`. Afișează
+  sumarul în consolă și deschide raportul în browser pentru fiecare replay nou.
+
+Programul doar verifică periodic folderul, la fiecare 3 s, și așteaptă ca fișierul să nu mai
+crească ~6 s, adică să se termine descărcarea. Nu comunică în niciun fel cu clientul. Replay-urile
+existente deja în folder sunt ignorate; pentru ele folosește `dotacheat.exe watch --existing`.
+Pentru alt folder: `dotacheat.exe watch --folder "D:\replays"`.
+
 ### Linie de comandă
 
 ```bat
@@ -62,6 +77,7 @@ dotacheat.exe analyze --match 8552595443
 dotacheat.exe analyze --file "C:\...\dota 2 beta\game\dota\replays\8552595443.dem"
 dotacheat.exe analyze --match 8552595443 --config praguri.toml --open
 dotacheat.exe folders          :: arată folderele de replay-uri găsite
+dotacheat.exe watch            :: analizează automat fiecare replay nou descărcat
 ```
 
 (Din sursă: `run.bat analyze --match ...` sau `python -m dotacheat analyze ...`.)
@@ -214,7 +230,8 @@ Structură:
 
 ```
 dotacheat/
-  cli.py            analyze --match / --file, gui, folders
+  cli.py            analyze --match / --file, watch, gui, folders
+  watch.py          urmărirea folderului de replay-uri (analiză automată)
   fetch.py          folder local Steam, OpenDota, download, bz2/zstd
   extract.py        o singură parsare (gem-dota + hook pe unit orders) → MatchData, cache .mdata.gz
   model.py          MatchData, ordine, vizibilitate, poziții, ceas cu pauze

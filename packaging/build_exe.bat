@@ -6,6 +6,7 @@ call .venv-build\Scripts\activate.bat
 python -m pip install --upgrade pip
 pip install . pyinstaller || goto :err
 pyinstaller --noconfirm --distpath dist --workpath build packaging\dotacheat.spec || goto :err
+copy /y packaging\urmareste-replayuri.bat dist\dotacheat\ >nul
 echo.
 echo Gata: dist\dotacheat\dotacheat.exe
 goto :eof

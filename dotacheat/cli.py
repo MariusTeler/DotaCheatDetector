@@ -53,6 +53,11 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument("--open", action="store_true", help="deschide raportul HTML în browser")
     a.add_argument("-v", "--verbose", action="store_true")
     sub.add_parser("folders", help="afișează folderele de replay-uri Dota 2 găsite pe acest PC")
+    w = sub.add_parser("watch", help="urmărește folderul de replay-uri și analizează automat fiecare replay nou")
+    w.add_argument("--folder", type=Path, action="append", help="folder de urmărit (implicit: detectat din Steam)")
+    w.add_argument("--no-open", action="store_true", help="nu deschide raportul în browser")
+    w.add_argument("--existing", action="store_true", help="analizează și replay-urile deja existente")
+    w.add_argument("--config", help="fișier TOML cu praguri/ponderi")
     g = sub.add_parser("gui", help="pornește interfața web locală")
     g.add_argument("--port", type=int, default=8765)
     g.add_argument("--no-browser", action="store_true")
@@ -66,6 +71,11 @@ def main(argv: list[str] | None = None) -> int:
         folders = replay_folders()
         print("\n".join(map(str, folders)) if folders else "niciun folder de replay-uri găsit")
         return 0
+    if args.cmd == "watch":
+        from .watch import watch_cli
+
+        return watch_cli(open_report=not args.no_open, include_existing=args.existing,
+                         config=args.config, folders=args.folder)
     if args.cmd == "gui":
         from .web import serve
 

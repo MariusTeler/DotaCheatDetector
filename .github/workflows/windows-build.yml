@@ -37,6 +37,8 @@ jobs:
         run: pyinstaller --noconfirm --distpath dist --workpath build packaging/dotacheat.spec
       - name: Smoke test
         run: dist\dotacheat\dotacheat.exe --version
+      - name: Add shortcuts
+        run: copy packaging\urmareste-replayuri.bat dist\dotacheat\
       - name: Zip
         shell: pwsh
         run: Compress-Archive -Path dist\dotacheat -DestinationPath dotacheat-windows.zip

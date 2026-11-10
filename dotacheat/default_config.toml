@@ -1,0 +1,93 @@
+# Default thresholds and weights for every heuristic.
+# Copy this file, change what you need and pass it with `--config my.toml`.
+# Only the keys you set are overridden. Times are in seconds unless the key ends in _ms.
+
+[scoring]
+# Each heuristic yields a sub-score in [0, 1] per player. The overall score is a
+# "noisy-OR": 100 * (1 - prod(1 - weight_h * subscore_h)), so a single very strong
+# signal can raise the score on its own and weak signals add up, but never past 100.
+[scoring.weights]
+fog_orders = 0.85
+fog_reactions = 0.45
+reaction_time = 0.60
+scripts = 0.60
+lasthits = 0.25
+dodges = 0.40
+cursor = 0.50
+
+# (a1) Orders (attack / cast / follow) on enemy heroes NOT visible to the player's team.
+[fog_orders]
+enabled = true
+order_types = [2, 4, 6]            # MOVE_TO_TARGET, ATTACK_TARGET, CAST_TARGET
+grace_s = 0.5                      # always tolerated after the target disappears
+latency_factor = 1.0               # + this * max(ping, last_order_latency) of the order
+min_hidden_s = 1.0                 # target must have been hidden at least this long (after grace)
+dedupe_s = 2.0                     # repeated orders on the same hidden target within this window count once
+# Sub-score: expected false-positive incidents per hour are ~0 after the filters
+# above; `incidents_for_half` incidents/hour give a sub-score of 0.5.
+incidents_for_half = 2.0
+min_incidents = 2                  # fewer flagged incidents than this => sub-score 0
+
+# (a2) Reacting to enemy heroes in the fog (retreat when an unseen enemy approaches).
+[fog_reactions]
+enabled = true
+threat_radius = 1300.0             # hidden enemy hero closer than this...
+approach_speed = 150.0             # ...and closing in at >= this many units/s
+retreat_window_s = 1.5             # retreat must start within this window
+retreat_min_turn_deg = 100.0       # direction change (vs. previous movement) to count as retreat
+min_samples = 6                    # hidden-threat episodes needed before scoring
+lift_for_half = 2.5                # P(retreat | hidden threat) / P(retreat | random moment) for sub-score 0.5
+baseline_samples = 400
+
+# (b) Inhumanly fast reactions (blink/BKB/dispel/Manta/Eul/TP...) to enemy actions.
+[reaction_time]
+enabled = true
+fast_ms = 120.0                    # corrected reaction below this is "inhuman"
+max_window_ms = 1000.0             # only responses within this window after the trigger count
+ping_correction = 0.5              # subtract this * ping of the response order (half RTT)
+trigger_radius = 1400.0            # trigger must happen this close to the player's hero
+min_fast = 3                       # need at least this many sub-threshold reactions...
+fast_share_for_half = 0.25         # ...and this share of all measured reactions for sub-score 0.5
+min_samples = 4
+
+# (c) Scripts / auto-combo: identical tick-level timing in repeated cast sequences.
+[scripts]
+enabled = true
+burst_gap_s = 0.6                  # casts closer than this are one "burst"
+min_repeats = 3                    # an ability sequence must repeat at least this often
+max_std_ticks = 0.5                # std-dev of intervals (ticks) at or below this is machine-like
+min_mean_ticks = 2.0               # ignore sequences pressed faster than this (key rolls)
+same_tick_distinct_casts = 3       # >= this many different abilities in the same tick = suspicious
+# abilities whose sub-casts are legitimately bound to one key / auto sequence
+ignore = ["invoker_quas", "invoker_wex", "invoker_exort", "courier_*", "item_tpscroll",
+          "item_travel_boots", "item_travel_boots_2", "item_power_treads", "item_phase_boots",
+          "item_magic_wand", "item_magic_stick", "item_bottle", "item_tango", "item_ward_*",
+          "*_toggle", "item_armlet"]
+incidents_for_half = 3.0
+
+# (d1) Last hits / denies with constant timing.
+[lasthits]
+enabled = true
+window_s = 1.5                     # last attack order at most this long before the creep died
+min_samples = 25
+cv_for_half = 0.08                 # coefficient of variation of (death - order) at/below => 0.5
+cv_human = 0.25                    # typical human CV; sub-score falls to 0 above this
+
+# (d2) Systematic perfect dodges of skillshots.
+[dodges]
+enabled = true
+fast_ms = 150.0
+max_window_ms = 900.0
+ping_correction = 0.5
+min_samples = 4
+fast_share_for_half = 0.5
+
+# (e) Cursor: orders targeting a place far away from where the mouse cursor was.
+[cursor]
+enabled = true
+# Calibrated automatically per match from MOVE_TO_POSITION orders; if the fit is
+# poor (median residual above max_fit_residual) the heuristic is skipped.
+max_fit_residual = 250.0
+far_distance = 1800.0              # order this far from the cursor (world units) is "off-screen-ish"
+min_far_orders = 10
+far_share_for_half = 0.05

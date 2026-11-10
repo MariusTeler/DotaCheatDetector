@@ -1,9 +1,23 @@
 name: windows-build
 
+# Builds dotacheat.exe on Windows, runs the tests, and publishes the zipped app
+# as a GitHub Release so it can be downloaded with one click:
+#   https://github.com/<owner>/<repo>/releases/latest/download/dotacheat-windows.zip
+# Every push to a release branch refreshes the rolling "latest" release; pushing a
+# tag like v0.2.0 creates a permanent versioned release.
+
 on:
   push:
-    branches: ["**"]
+    branches: ["main", "claude/stoic-hawking-q1doc2"]
+    tags: ["v*"]
   workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-build-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -23,7 +37,36 @@ jobs:
         run: pyinstaller --noconfirm --distpath dist --workpath build packaging/dotacheat.spec
       - name: Smoke test
         run: dist\dotacheat\dotacheat.exe --version
+      - name: Zip
+        shell: pwsh
+        run: Compress-Archive -Path dist\dotacheat -DestinationPath dotacheat-windows.zip
       - uses: actions/upload-artifact@v4
         with:
           name: dotacheat-windows
           path: dist/dotacheat
+
+      - name: Publish rolling "latest" release
+        if: github.ref_type == 'branch'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > notes.md <<EOF
+          Build automat din \`${GITHUB_REF_NAME}\` @ \`${GITHUB_SHA::7}\`.
+
+          **Instalare:** descarcă \`dotacheat-windows.zip\`, dezarhivează, dublu-click pe \`dotacheat\\dotacheat.exe\`.
+
+          Rezultatul este un SCOR DE SUSPICIUNE, nu o dovadă și nu un verdict. Programul citește doar fișiere de replay; nu interacționează cu clientul Dota 2.
+          EOF
+          gh release delete latest --cleanup-tag --yes || true
+          gh release create latest dotacheat-windows.zip --target "$GITHUB_SHA" \
+            --title "DotaCheatDetector (ultima versiune)" --notes-file notes.md --latest
+
+      - name: Publish versioned release
+        if: github.ref_type == 'tag'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dotacheat-windows.zip --verify-tag \
+            --title "DotaCheatDetector $GITHUB_REF_NAME" --generate-notes

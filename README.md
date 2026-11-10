@@ -21,8 +21,10 @@ Programul lucrează **exclusiv pe fișiere de replay**:
 
 ### Varianta 1: executabil (recomandat)
 
-1. Descarcă artefactul `dotacheat-windows` din tab-ul **Actions** al repository-ului: ultimul
-   build verde al workflow-ului `windows-build`. Sau construiește-l singur cu varianta 3.
+1. Descarcă **[dotacheat-windows.zip](https://github.com/MariusTeler/DotaCheatDetector/releases/latest/download/dotacheat-windows.zip)**
+   (pagina [Releases](https://github.com/MariusTeler/DotaCheatDetector/releases)). Zip-ul e
+   construit și publicat automat de GitHub Actions la fiecare actualizare a codului. Sau
+   construiește-l singur cu varianta 3.
 2. Dezarhivează-l oriunde, de exemplu `C:\Tools\dotacheat\`.
 3. Dublu-click pe `dotacheat.exe`. Se deschide în browser interfața locală
    (`http://127.0.0.1:8765`), unde lipești Match ID-ul.
